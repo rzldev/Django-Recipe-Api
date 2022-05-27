@@ -1,7 +1,7 @@
 FROM python:3.10-alpine3.16
 LABEL maintainer=""
 
-ENV PYTHONBUFFERRED 1
+ENV PYTHONUNBUFFERRED 1
 COPY ./requirements.txt /tmp/requirements.txt
 COPY ./requirements.dev.txt /tmp/requirements.dev.txt
 COPY ./app /app
