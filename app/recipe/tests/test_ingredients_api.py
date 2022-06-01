@@ -2,6 +2,8 @@
 Tests for the ingredients API.
 """
 
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.test import TestCase
@@ -9,7 +11,10 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Ingredient
+from core.models import (
+    Recipe,
+    Ingredient,
+)
 
 from recipe.serializers import IngredientSerializer
 
@@ -28,6 +33,23 @@ def create_user(email='test@example.com', password='sampletest123'):
     Create and return new user.
     """
     return get_user_model().objects.create(email=email, password=password)
+
+
+def create_recipe(user, **params):
+    """
+    Create and return a sample recipe.
+    """
+    default = {
+        'title': 'Sample recipe title',
+        'time_minutes': 22,
+        'price': Decimal('5.25'),
+        'description': 'Sample recipe description',
+        'link': 'https://example.com/recipe.pdf',
+    }
+    default.update(params)
+
+    recipe = Recipe.objects.create(user=user, **default)
+    return recipe
 
 
 def create_ingredient(user, name='Ingredient'):
@@ -121,3 +143,49 @@ class PrivateIngredientApiTests(TestCase):
         ingredients = Ingredient.objects.all() \
             .filter(user=self.user).order_by('-name')
         self.assertFalse(ingredients.exists())
+
+    def test_filter_ingredients_assigned_to_recipes(self):
+        """
+        Test listing ingredients by those assigned to recipes.
+        """
+        ingredient1 = create_ingredient(user=self.user, name='Apple')
+        ingredient2 = create_ingredient(user=self.user, name='Ground Beef')
+        ingredient3 = create_ingredient(user=self.user, name='Cinnamon')
+
+        recipe = create_recipe(user=self.user, title='Apple Pie')
+        recipe.ingredients.add(ingredient1)
+        recipe.ingredients.add(ingredient3)
+
+        params = {
+            'assigned_only': 1,
+        }
+        res = self.client.get(INGREDIENTS_URL, params)
+
+        inSerializer1 = IngredientSerializer(ingredient1)
+        inSerializer2 = IngredientSerializer(ingredient2)
+        inSerializer3 = IngredientSerializer(ingredient3)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(inSerializer1.data, res.data)
+        self.assertNotIn(inSerializer2.data, res.data)
+        self.assertIn(inSerializer3.data, res.data)
+
+    def test_filter_ingredients_unique(self):
+        """
+        Test filtered ingredients returns a unique list.
+        """
+        ingredient = create_ingredient(user=self.user, name='Egg')
+        create_ingredient(user=self.user, name='Tomato')
+
+        recipe1 = create_recipe(user=self.user, title='Egg Custard Pie')
+        recipe2 = create_recipe(user=self.user, title='Omelette')
+        recipe1.ingredients.add(ingredient)
+        recipe2.ingredients.add(ingredient)
+
+        params = {
+            'assigned_only': 1,
+        }
+        res = self.client.get(INGREDIENTS_URL, params)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 1)
