@@ -205,7 +205,7 @@ class PrivateRecipeApiTests(TestCase):
         recipe.refresh_from_db()
         self.assertEqual(recipe.user, self.user)
 
-    def delete_recipe_successful(self):
+    def test_delete_recipe_successful(self):
         """
         Test deleting a recipe successful.
         """
@@ -213,7 +213,7 @@ class PrivateRecipeApiTests(TestCase):
 
         res = self.client.delete(detail_url(recipe.id))
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(Recipe.objects.filter(id=recipe.id).exists())
+        self.assertFalse(Recipe.objects.filter(id=recipe.id).exists())
 
     def test_delete_other_user_recipe_error(self):
         """
