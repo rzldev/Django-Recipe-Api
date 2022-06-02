@@ -18,6 +18,7 @@ services:
       - DB_NAME=devdb
       - DB_USER=rzldev
       - DB_PASSWORD=rzldev123
+      - DEBUG=1
     depends_on:
       - db
 
